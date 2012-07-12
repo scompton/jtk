@@ -558,6 +558,29 @@ public class DynamicWarping {
     normalizeErrors(e);
     return e;
   }
+  
+  /**
+   * Returns normalized alignment errors for all samples and fractional 
+   * lags. The number of lags nl = 1+shiftMax-shiftMin is increased to
+   * nlx = (nl-1)*fr+1. Lag indices ilx = 0, 1, 2, ..., nlx-1 
+   * correspond to fractional shifts in [shiftMin,shiftMax], at intervals
+   * dx = 1.0/fr. Alignment errors are a monotonically increasing function
+   * of |f[i1]-g[i1+ilx*dx+shiftMin]|
+   * @param f array[n1] for the sequence f[i1].
+   * @param g array[n1] for the sequence g[i1].
+   * @param fr fractional factor that determines the fractional
+   *  interval for lags.
+   * @return array[n1][nlx] of alignment errors.
+   */
+  public float[][] computeErrorsFrac(float[] f, float[] g, int fr) {
+    Check.argument(fr>0,"fr>0");
+    int n1 = f.length;
+    int nlx = (_nl-1)*fr+1;
+    float[][] e = new float[n1][nlx];
+    computeErrorsFrac(f,g,e,fr);
+    normalizeErrors(e);
+    return e;
+  }
 
   /**
    * Returns normalized alignment errors for all samples and lags.
@@ -578,6 +601,35 @@ public class DynamicWarping {
     Parallel.loop(n2,new Parallel.LoopInt() {
     public void compute(int i2) {
       computeErrors(ff[i2],gf[i2],ef[i2]);
+    }});
+    normalizeErrors(ef);
+    return ef;
+  }
+  
+  /**
+   * Returns normalized alignment errors for all samples and fractional 
+   * lags. The number of lags nl = 1+shiftMax-shiftMin is increased to
+   * nlx = (nl-1)*fr+1. Lag indices ilx = 0, 1, 2, ..., nlx-1 
+   * correspond to fractional shifts in [shiftMin,shiftMax], at intervals
+   * dx = 1.0/fr. Alignment errors are a monotonically increasing function
+   * of |f[i2][i1]-g[i2][i1+ilx*dx+shiftMin]|
+   * @param f array[n2][n1] for the sequence f[i2][i1].
+   * @param g array[n2][n1] for the sequence g[i2][i1].
+   * @param fr fractional factor that determines the fractional
+   *  interval for lags.
+   * @return array[n2][n1][nlx] of alignment errors.
+   */
+  public float[][][] computeErrorsFrac(float[][] f, float[][] g, int fr) {
+    final int n1 = f[0].length;
+    final int n2 = f.length;
+    final int frf = fr;
+    final int nlx = (_nl-1)*frf+1;
+    final float[][] ff = f;
+    final float[][] gf = g;
+    final float[][][] ef = new float[n2][n1][nlx];
+    Parallel.loop(n2,new Parallel.LoopInt() {
+    public void compute(int i2) {
+      computeErrorsFrac(ff[i2],gf[i2],ef[i2],frf);
     }});
     normalizeErrors(ef);
     return ef;
@@ -924,7 +976,7 @@ public class DynamicWarping {
    * @param u output array of shifts.
    */
   public void backtrackReverse(float[][] d, float[][] e, float[] u) {
-    backtrack(-1,_bstrain1,_lmin,d,e,u);
+    backtrack(-1,_bstrain1,_lags,d,e,u);
   }
 
   /**
@@ -956,7 +1008,7 @@ public class DynamicWarping {
         di1[i2] = d[i2][i1];
         ei1[i2] = e[i2][i1];
       }
-      backtrack(-1,_bstrain2,_lmin,di1,ei1,ui1);
+      backtrack(-1,_bstrain2,_lags,di1,ei1,ui1);
       for (int i2=0; i2<n2; ++i2)
         u[i2][i1] = ui1[i2];
     }
@@ -1088,6 +1140,7 @@ public class DynamicWarping {
 
   private int _nl; // number of lags
   private int _lmin,_lmax; // min,max lags
+  private float[] _lags; // lag values
   private ErrorExtrapolation _extrap; // method for error extrapolation
   private float _epow = 2; // exponent used for alignment errors |f-g|^e
   private int _esmooth = 0; // number of nonlinear smoothings of errors
@@ -1129,6 +1182,7 @@ public class DynamicWarping {
     int n1 = f.length;
     int nl = _nl;
     int n1m = n1-1;
+    _lags = rampfloat(_lmin, 1.0f, nl);
     boolean average = _extrap==ErrorExtrapolation.AVERAGE;
     boolean nearest = _extrap==ErrorExtrapolation.NEAREST;
     boolean reflect = _extrap==ErrorExtrapolation.REFLECT;
@@ -1199,6 +1253,104 @@ public class DynamicWarping {
       }
     }
   }
+  
+  /**
+   * Computes alignment errors for fractional shifts, not normalized
+   * @param f input array[ni] for sequence f.
+   * @param g input array[ni] for sequence g.
+   * @param e output array[ni][nlx] of alignment errors.
+   * @param fr factor for computing errors at fractional shifts. Errors will
+   *  be computed at fractional intervals of 1.0/fr
+   */
+  private void computeErrorsFrac(float[] f, float[] g, float[][] e, int fr) { 
+    int n1 = f.length;
+    int n1m = n1-1;
+    int nlx = e[0].length;
+    float dx = 1.0f/fr;
+    Sampling sl = new Sampling(nlx,dx,_lmin);
+    double[] l = sl.getValues();
+    _lags = new float[nlx];
+    for (int ilx=0; ilx<nlx; ++ilx)
+      _lags[ilx] = (float)l[ilx];
+    SincInterpolator si = new SincInterpolator();
+    si.setUniformSampling(n1, 1.0f, 0.0f);
+    si.setUniformSamples(g);
+    boolean average = _extrap==ErrorExtrapolation.AVERAGE;
+    boolean nearest = _extrap==ErrorExtrapolation.NEAREST;
+    boolean reflect = _extrap==ErrorExtrapolation.REFLECT;
+    float[] eavg = average?new float[nlx]:null; 
+    int[] navg = average?new int[nlx]:null;
+    float emax = 0.0f;
+
+    // Notes for indexing:
+    // fr = fractional factor. Fractional error is measured at interval 1.0/fr
+    // 0 <= ilx < nlx, where ilx is the fractional lag index, and nlx has
+    //                 length (nl-1)*fr+1
+    // 0 <=  i1 <  n1, where i1 is index for sequence f
+    // 0 <=  j1 <  n1, where j1 is a fractional value for sequence g that will
+    //                 be interpolated         
+    // j1 = i1+l[ilx], where l[ilx] = fractional lag value
+    // ilxlo = max(0,fr*(-lmin-i1)), where ilxlo is the minimum ilx that is
+    //                               in bounds of sequence g, relative to the
+    //                               current index of sequence f
+    // ilxhi = min(nlx,fr*(n1-lmin-i1)), where ilxhi is the maximum ilx that is
+    //                                   in bounds of sequence g, relative to
+    //                                   the current index of sequence f
+
+    // Compute errors where indices are in bounds for both f and g.
+    for (int i1=0; i1<n1; ++i1) {
+      int ilxlo = max(  0,fr*(  -_lmin-i1)); // see notes
+      int ilxhi = min(nlx,fr*(n1-_lmin-i1)); // above
+      for (int ilx=ilxlo; ilx<ilxhi; ++ilx) {
+        double j1 = i1+l[ilx];
+        float gx = si.interpolate(j1);
+        float ei = error(f[i1], gx);
+        e[i1][ilx] = ei;
+        if (average) {
+          eavg[ilx] += ei;
+          navg[ilx] += 1;
+        }
+        if (ei>emax)
+          emax = ei;
+      }
+    }
+
+    // If necessary, complete computation of average errors for each lag.
+    if (average) {
+      for (int ilx=0; ilx<nlx; ++ilx) {
+        if (navg[ilx]>0)
+          eavg[ilx] /= navg[ilx];
+      }
+    }
+
+    // For indices where errors have not yet been computed, extrapolate.
+    for (int i1=0; i1<n1; ++i1) {
+      int ilxlo = max(  0,fr*(  -_lmin-i1)); // same as
+      int ilxhi = min(nlx,fr*(n1-_lmin-i1)); // above
+      for (int ilx=0; ilx<nlx; ++ilx) {
+        if (ilx<ilxlo || ilx>=ilxhi) {
+          if (average) {
+            if (navg[ilx]>0) {
+              e[i1][ilx] = eavg[ilx];
+            } else {
+              e[i1][ilx] = emax;
+            }
+          } else if (nearest || reflect) {
+            int k1 = (ilx<ilxlo)?-_lmin-(ilx/fr):n1m-_lmin-(ilx/fr);
+            if (reflect)
+              k1 += k1-i1;
+            if (0<=k1 && k1<n1) {
+              e[i1][ilx] = e[k1][ilx];
+            } else {
+              e[i1][ilx] = emax;
+            }
+          } else {
+            e[i1][ilx] = emax;
+          }
+        }
+      }
+    }
+  }
 
   /**
    * Non-linear accumulation of alignment errors.
@@ -1241,13 +1393,13 @@ public class DynamicWarping {
    * that for which accumulation was performed.
    * @param dir backtrack direction, positive or negative.
    * @param b sample offset used to constrain changes in lag.
-   * @param lmin minimum lag corresponding to lag index zero.
+   * @param lags array[nl] of lag values
    * @param d input array[ni][nl] of accumulated errors.
    * @param e input array[ni][nl] of alignment errors.
    * @param u output array[ni] of computed shifts.
    */
   private static void backtrack(
-    int dir, int b, int lmin, float[][] d, float[][] e, float[] u) 
+    int dir, int b, float[] lags, float[][] d, float[][] e, float[] u) 
   {
     int nl = d[0].length;
     int ni = d.length;
@@ -1265,7 +1417,7 @@ public class DynamicWarping {
         il = jl;
       }
     }
-    u[ii] = il+lmin;
+    u[ii] = lags[il];
     while (ii!=ie) {
       int ji = max(0,min(nim1,ii+is));
       int jb = max(0,min(nim1,ii+is*b));
@@ -1287,11 +1439,11 @@ public class DynamicWarping {
         }
       }
       ii += is;
-      u[ii] = il+lmin;
+      u[ii] = lags[il];
       if (il==ilm1 || il==ilp1) {
         for (int kb=ji; kb!=jb; kb+=is) {
           ii += is;
-          u[ii] = il+lmin;
+          u[ii] = lags[il];
         }
       }
     }
