@@ -6,6 +6,7 @@ available at http://www.eclipse.org/legal/cpl-v10.html
 ****************************************************************************/
 package edu.mines.jtk.dsp;
 
+import edu.mines.jtk.dsp.SincInterp;
 import edu.mines.jtk.util.*;
 import static edu.mines.jtk.util.ArrayMath.*;
 
@@ -114,7 +115,7 @@ public class DynamicWarping {
     _fr = fr;
     _nl = (_lmax-_lmin)*_fr+1;
     _shifts = new Sampling(_nl,1.0/_fr,_lmin);
-    _si = new SincInterpolator();
+    _si = new SincInterp();
     _extrap = ErrorExtrapolation.NEAREST;
   }
 
