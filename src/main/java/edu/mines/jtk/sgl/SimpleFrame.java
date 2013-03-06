@@ -8,10 +8,13 @@ package edu.mines.jtk.sgl;
 
 import java.awt.*;
 import java.awt.event.ActionEvent;
+import java.awt.image.IndexColorModel;
+
 import javax.swing.*;
 
 import edu.mines.jtk.awt.*;
 import edu.mines.jtk.dsp.Sampling;
+import edu.mines.jtk.mosaic.ColorBar;
 
 /**
  * A simple frame for 3D graphics.
@@ -25,7 +28,7 @@ public class SimpleFrame extends JFrame {
    * Axes orientation defaults to x-right, y-top and z-down.
    */
   public SimpleFrame() {
-    this(null,null);
+    this(null,null,null);
   }
 
   /**
@@ -33,7 +36,7 @@ public class SimpleFrame extends JFrame {
    * @param ao the axes orientation.
    */
   public SimpleFrame(AxesOrientation ao) {
-    this(null,ao);
+    this(null,ao,null);
   }
 
   /**
@@ -41,7 +44,7 @@ public class SimpleFrame extends JFrame {
    * @param world the world view.
    */
   public SimpleFrame(World world) {
-    this(world,null);
+    this(world,null,null);
   }
 
   /**
@@ -49,7 +52,7 @@ public class SimpleFrame extends JFrame {
    * @param world the world view.
    * @param ao the axes orientation.
    */
-  public SimpleFrame(World world, AxesOrientation ao) {
+  public SimpleFrame(World world, AxesOrientation ao, String cbar) {
     if (world==null) world = new World();
     if (ao==null) ao = AxesOrientation.XRIGHT_YOUT_ZDOWN;
     _world = world;
@@ -95,7 +98,10 @@ public class SimpleFrame extends JFrame {
     _toolBar.add(sdmButton);
 
     ovm.setActive(true);
-
+    
+//    _colorBar = new ColorBar("Amplitude");
+//    this.add(_colorBar,BorderLayout.EAST);
+    
     this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
     this.setSize(new Dimension(SIZE,SIZE));
     this.add(_canvas,BorderLayout.CENTER);
@@ -110,6 +116,11 @@ public class SimpleFrame extends JFrame {
    */
   public ModeManager getModeManager() {
     return _modeManager;
+  }
+  
+  public void addColorBar(String name) {
+    _colorBar = new ColorBar(name);
+    this.add(_colorBar,BorderLayout.EAST);
   }
 
   /**
@@ -177,7 +188,9 @@ public class SimpleFrame extends JFrame {
     boolean vn, Sampling sx, Sampling sy, float[][] z,
     float[][] r, float[][] g, float[][] b)
   {
-    return asTriangles(new TriangleGroup(vn,sx,sy,z,r,g,b));
+    TriangleGroup tg = new TriangleGroup(vn,sx,sy,z,r,g,b);
+    tg.setColorModel(ColorMap.BLUE_WHITE_RED);
+    return asTriangles(tg);
   }
 
   /**
@@ -273,6 +286,9 @@ public class SimpleFrame extends JFrame {
    */
   public TriangleGroup addTriangles(TriangleGroup tg) {
     _world.addChild(tg);
+    IndexColorModel icm = tg.getColorModel();
+    if (icm!=null)
+      _colorBar.colorMapChanged(new ColorMap(icm));
     return tg;
   }
 
@@ -310,6 +326,7 @@ public class SimpleFrame extends JFrame {
    */
   public ImagePanelGroup addImagePanels(ImagePanelGroup ipg) {
     _world.addChild(ipg);
+    _colorBar.colorMapChanged(new ColorMap(ipg.getColorModel()));
     return ipg;
   }
 
@@ -402,6 +419,7 @@ public class SimpleFrame extends JFrame {
   private World _world;
   private ModeManager _modeManager;
   private JToolBar _toolBar;
+  private ColorBar _colorBar;
   private static final int SIZE = 600;
 
 }

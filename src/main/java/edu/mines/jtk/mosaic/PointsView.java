@@ -61,6 +61,8 @@ public class PointsView extends TiledView {
     HOLLOW_SQUARE,
     FILLED_CIRCLE,
     FILLED_SQUARE,
+    TRIANGLE_UP,
+    TRIANGLE_DOWN,
   }
 
   /**
@@ -335,6 +337,10 @@ public class PointsView extends TiledView {
       int i = style.indexOf(".");
       if (i==0 || style.charAt(i-1)!='-')
         setMarkStyle(Mark.POINT);
+    } else if (style.contains(">")) {
+      setMarkStyle(Mark.TRIANGLE_UP);
+    } else if (style.contains("<")) {
+      setMarkStyle(Mark.TRIANGLE_DOWN);
     } else {
       setMarkStyle(Mark.NONE);
     }
@@ -533,6 +539,10 @@ public class PointsView extends TiledView {
           paintFilledSquare(gmark,markSize,n,x,y);
         } else if (_markStyle==Mark.HOLLOW_SQUARE) {
           paintHollowSquare(gmark,markSize,n,x,y);
+        } else if (_markStyle==Mark.TRIANGLE_UP) {
+          paintTriangleUp(gmark,markSize,n,x,y);
+        } else if (_markStyle==Mark.TRIANGLE_DOWN) {
+          paintTriangleDown(gmark,markSize,n,x,y);
         }
       }
 
@@ -724,6 +734,36 @@ public class PointsView extends TiledView {
     int xy = wh/2;
     for (int i=0; i<n; ++i)
       g2d.drawRect(x[i]-xy,y[i]-xy,wh-1,wh-1);
+  }
+  
+  private void paintTriangleUp(
+      Graphics2D g2d, int s, int n, int[] x, int[] y) 
+  {
+    int wh = 2*(s/2);
+    int xy = wh/2;
+    for (int i=0; i<n; ++i) {
+      int xi = x[i];
+      int yi = y[i];
+      int[] xip = new int[] {xi-xy,xi+xy,xi};
+      int[] yip = new int[] {yi-xy,yi-xy,yi+xy};
+      Polygon triangle = new Polygon(xip,yip,3);
+      g2d.fillPolygon(triangle);
+    }
+  }
+  
+  private void paintTriangleDown(
+      Graphics2D g2d, int s, int n, int[] x, int[] y) 
+  {
+    int wh = 2*(s/2);
+    int xy = wh/2;
+    for (int i=0; i<n; ++i) {
+      int xi = x[i];
+      int yi = y[i];
+      int[] xip = new int[] {xi-xy,xi+xy,xi};
+      int[] yip = new int[] {yi+xy,yi+xy,yi-xy};
+      Polygon triangle = new Polygon(xip,yip,3);
+      g2d.fillPolygon(triangle);  
+    }
   }
   
   private void paintLabel(

@@ -297,8 +297,8 @@ public class PlotPanel extends IPanel {
       if (_title==null) {
         _title = new Title(title);
         Font font = getFont();
-        font.deriveFont(1.5f*font.getSize2D());
-        _title.setFont(getFont());
+        font = font.deriveFont(1.5f*font.getSize2D());
+        _title.setFont(font);
         _title.setForeground(getForeground());
         _title.setBackground(getBackground());
         GridBagConstraints gbc = new GridBagConstraints();
@@ -400,7 +400,30 @@ public class PlotPanel extends IPanel {
       setBestVerticalProjector(irow,new Projector(vmin,vmax));
     }
   }
-
+  
+  /**
+   * Sets limits for the vertical axis in the specified row.
+   * By default, limits are computed automatically by tiled graphical views.
+   * This method can be used to override those default limits.
+   * </p>
+   * This method uses a given orientation which is necessary if
+   * if the plot panel contains tiles with different orientations.
+   * @param irow the row index.
+   * @param vmin the minimum value.
+   * @param vmax the maximum value.
+   * @param orientation the orietation.
+   */
+  public void setVLimits(
+      int irow, double vmin, double vmax, Orientation orientation) 
+  {
+    Check.argument(vmin<vmax,"vmin<vmax");
+    if (orientation==Orientation.X1RIGHT_X2UP) {
+      setBestVerticalProjector(irow,new Projector(vmax,vmin));
+    } else {
+      setBestVerticalProjector(irow,new Projector(vmin,vmax));
+    }
+  }
+  
   /**
    * Sets default limits for horizontal and vertical axes. This method may
    * be used to restore default limits after they have been set explicitly.

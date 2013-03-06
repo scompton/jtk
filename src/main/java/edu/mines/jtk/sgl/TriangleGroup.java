@@ -9,10 +9,13 @@ package edu.mines.jtk.sgl;
 import java.nio.FloatBuffer;
 import java.util.HashMap;
 
+import edu.mines.jtk.awt.ColorMap;
+import edu.mines.jtk.awt.ColorMapListener;
 import edu.mines.jtk.dsp.Sampling;
 import static edu.mines.jtk.ogl.Gl.*;
 import edu.mines.jtk.util.Direct;
 import java.awt.Color;
+import java.awt.image.IndexColorModel;
 
 /**
  * A group of triangles that represents a triangulated surface.
@@ -78,6 +81,8 @@ public class TriangleGroup extends Group implements Selectable {
    * @param rgb array[3*nv] of packed color components.
    */
   public TriangleGroup(boolean vn, float[] xyz, float[] rgb) {
+//    new IndexColorModel(arg0, arg1, arg2, arg3, arg4, arg5)
+//    new ColorMap();
     int[] ijk = indexVertices(!vn,xyz);
     float[] uvw = computeNormals(ijk,xyz);
     buildTree(ijk,xyz,uvw,rgb);
@@ -338,6 +343,27 @@ public class TriangleGroup extends Group implements Selectable {
       cs = new ColorState();
     cs.setColor(color);
   }
+  
+  public void setColorModel(IndexColorModel colorModel) {
+    _colorModel = colorModel;
+  }
+  
+  public IndexColorModel getColorModel() {
+    return _colorModel;
+  }
+  
+  /**
+   * Adds the specified color map listener.
+   * @param cml the listener.
+   */
+  public void addColorMapListener(ColorMapListener cml) {
+    _colorMap.addListener(cml);
+  }
+
+  public void setColorMap(ColorMap cmap, double min, double max) {
+    _colorMap = cmap;
+    _colorMap.setValueRange(min,max);
+  }
 
   ///////////////////////////////////////////////////////////////////////////
   // protected
@@ -357,6 +383,8 @@ public class TriangleGroup extends Group implements Selectable {
   private static final int R = 0,  G = 1,  B = 2;
 
   private static final int MIN_TRI_PER_NODE = 1024;
+  private IndexColorModel _colorModel;
+  private ColorMap _colorMap;
 
   /**
    * Recursively builds a binary tree with leaf triangle nodes.

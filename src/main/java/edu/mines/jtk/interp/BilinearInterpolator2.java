@@ -39,6 +39,10 @@ public class BilinearInterpolator2 {
     this(x1.length,x2.length,x1,x2,y);
   }
 
+  public BilinearInterpolator2(float[][] x1, float[] x2, float[][] y) {
+    this(x1[0].length,x2.length,x1,x2,y);
+  }
+
   /**
    * Constructs an interpolator for specified values.
    * @param n1 number of x1 coordinates.
@@ -48,13 +52,25 @@ public class BilinearInterpolator2 {
    * @param y array[n2][n1] of sampled values y(x1,x2).
    */
   public BilinearInterpolator2(
-    int n1, int n2, float[] x1, float[] x2, float[][] y) 
+      int n1, int n2, float[] x1, float[] x2, float[][] y) 
   {
     Check.argument(isMonotonic(x1), "array x1 is monotonic");
     Check.argument(isMonotonic(x2), "array x2 is monotonic");
     _x1 = copy(n1,x1);
     _x2 = copy(n2,x2);
     makeCoefficients(_x1,_x2,y);
+  }
+
+  public BilinearInterpolator2(
+      int n1, int n2, float[][] x1, float[] x2, float[][] y) 
+  {
+    Check.argument(n2==x1.length,"x1 array specified for all n2");
+    for (int i2=0; i2<n2; i2++)
+      Check.argument(isMonotonic(x1[i2]), "array x1 is monotonic");
+    Check.argument(isMonotonic(x2), "array x2 is monotonic");
+    _x1v2 = copy(x1);
+    _x2 = copy(n2,x2);
+    makeCoefficients(_x1v2,_x2,y);
   }
 
   /**
@@ -143,14 +159,29 @@ public class BilinearInterpolator2 {
   public void interpolate00(Sampling s1, Sampling s2, float[][] y) {
     int n1 = s1.getCount();
     int n2 = s2.getCount();
-    int[] k1 = makeIndices(s1,_x1);
-    int[] k2 = makeIndices(s2,_x2);
-    for (int i2=0; i2<n2; ++i2) {
-      float x2 = (float)s2.getValue(i2);
-      for (int i1=0; i1<n1; ++i1) {
-        float x1 = (float)s1.getValue(i1);
-        y[i2][i1] = interpolate00(x1,x2,k1[i1],k2[i2]);
+    if (_x1v2!=null) {
+      int n2x1 = _x1v2.length;
+      int[][] k1 = new int[n2x1][];
+      for (int i2=0; i2<n2x1; i2++)
+        k1[i2] = makeIndices(s1,_x1v2[i2]);
+      int[] k2 = makeIndices(s2,_x2);
+      for (int i2=0; i2<n2; ++i2) {
+        float x2 = (float)s2.getValue(i2);
+        for (int i1=0; i1<n1; ++i1) {
+          float x1 = (float)s1.getValue(i1);
+          y[i2][i1] = interpolate00(x1,x2,k1[k2[i2]][i1],k2[i2]);
+        }
       }
+    } else {
+      int[] k1 = makeIndices(s1,_x1);
+      int[] k2 = makeIndices(s2,_x2);
+      for (int i2=0; i2<n2; ++i2) {
+        float x2 = (float)s2.getValue(i2);
+        for (int i1=0; i1<n1; ++i1) {
+          float x1 = (float)s1.getValue(i1);
+          y[i2][i1] = interpolate00(x1,x2,k1[i1],k2[i2]);
+        }
+      }  
     }
   }
 
@@ -217,6 +248,7 @@ public class BilinearInterpolator2 {
 
   private float[] _x1; // array of x1 coordinates in regular grid
   private float[] _x2; // array of x2 coordinates in regular grid
+  private float[][] _x1v2; // array of variable x1 coordinates in regular grid
   private float[][] _a00,_a10,_a01,_a11; // interpolation coefficients
   private int[] _ks = {0,0}; // coefficients used in previous interpolation
 
@@ -266,7 +298,7 @@ public class BilinearInterpolator2 {
   }
 
   private float interpolate00(float x1, float x2, int k1, int k2) {
-    float d1 = x1-_x1[k1];
+    float d1 = (_x1v2!=null)?x1-_x1v2[k2][k1]:x1-_x1[k1];
     float d2 = x2-_x2[k2];
     return _a00[k2][k1]+d1*_a10[k2][k1] +
        d2*(_a01[k2][k1]+d1*_a11[k2][k1]);
@@ -291,6 +323,29 @@ public class BilinearInterpolator2 {
       float d2 = x2[k2+1]-x2[k2];
       for (int k1=0; k1<n1-1; ++k1) {
         float d1 = x1[k1+1]-x1[k1];
+        float y00 = y[k2  ][k1  ];
+        float y10 = y[k2  ][k1+1];
+        float y01 = y[k2+1][k1  ];
+        float y11 = y[k2+1][k1+1];
+        _a00[k2][k1] = y00;
+        _a10[k2][k1] = (y10-y00)/d1;
+        _a01[k2][k1] = (y01-y00)/d2;
+        _a11[k2][k1] = (y00-y10+y11-y01)/(d1*d2);
+      }
+    }
+  }
+  
+  private void makeCoefficients(float[][] x1, float[] x2, float[][] y) {
+    int n1 = x1[0].length;
+    int n2 = x2.length;
+    _a00 = new float[n2-1][n1-1];
+    _a10 = new float[n2-1][n1-1];
+    _a01 = new float[n2-1][n1-1];
+    _a11 = new float[n2-1][n1-1];
+    for (int k2=0; k2<n2-1; ++k2) {
+      float d2 = x2[k2+1]-x2[k2];
+      for (int k1=0; k1<n1-1; ++k1) {
+        float d1 = x1[k2][k1+1]-x1[k2][k1];
         float y00 = y[k2  ][k1  ];
         float y10 = y[k2  ][k1+1];
         float y01 = y[k2+1][k1  ];
