@@ -326,7 +326,6 @@ public class SimpleFrame extends JFrame {
    */
   public ImagePanelGroup addImagePanels(ImagePanelGroup ipg) {
     _world.addChild(ipg);
-    _colorBar.colorMapChanged(new ColorMap(ipg.getColorModel()));
     return ipg;
   }
 

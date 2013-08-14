@@ -13,6 +13,7 @@ import edu.mines.jtk.awt.ColorMap;
 import edu.mines.jtk.awt.ColorMapListener;
 import edu.mines.jtk.dsp.Sampling;
 import static edu.mines.jtk.ogl.Gl.*;
+import static edu.mines.jtk.util.ArrayMath.*;
 import edu.mines.jtk.util.Direct;
 import java.awt.Color;
 import java.awt.image.IndexColorModel;
@@ -78,14 +79,14 @@ public class TriangleGroup extends Group implements Selectable {
    * vectors are less costly to compute.
    * @param vn true, for vertex normals; false, for triangle normals.
    * @param xyz array[3*nv] of packed vertex coordinates.
-   * @param rgb array[3*nv] of packed color components.
+   * @param rgba array[4*nv] of packed color components.
    */
-  public TriangleGroup(boolean vn, float[] xyz, float[] rgb) {
+  public TriangleGroup(boolean vn, float[] xyz, float[] rgba) {
 //    new IndexColorModel(arg0, arg1, arg2, arg3, arg4, arg5)
 //    new ColorMap();
     int[] ijk = indexVertices(!vn,xyz);
     float[] uvw = computeNormals(ijk,xyz);
-    buildTree(ijk,xyz,uvw,rgb);
+    buildTree(ijk,xyz,uvw,rgba);
     setDefaultStates();
   }
 
@@ -111,12 +112,18 @@ public class TriangleGroup extends Group implements Selectable {
    * @param b array[nx][ny] of blue color components.
    */
   public TriangleGroup(
-    boolean vn, Sampling sx, Sampling sy, float[][] z,
-    float[][] r, float[][] g, float[][] b)
-  {
-    this(vn,makeVertices(sx,sy,z),makeColors(r,g,b));
-  }
-  private static float[] makeVertices(Sampling sx, Sampling sy, float[][] z) {
+      boolean vn, Sampling sx, Sampling sy, float[][] z,
+      float[][] r, float[][] g, float[][] b)
+    {
+      this(vn,makeVertices(sx,sy,z),makeColors(r,g,b));
+    }
+  public TriangleGroup(
+      boolean vn, Sampling sx, Sampling sy, float[][] z,
+      float[][] r, float[][] g, float[][] b, float[][] a)
+    {
+      this(vn,makeVertices(sx,sy,z),makeColors(r,g,b,a));
+    }
+    private static float[] makeVertices(Sampling sx, Sampling sy, float[][] z) {
     int nx = sx.getCount()-1;
     int ny = sy.getCount()-1;
     float[] xyz = new float[3*6*nx*ny];
@@ -137,32 +144,47 @@ public class TriangleGroup extends Group implements Selectable {
     return xyz;
   }
   private static float[] makeColors(float[][] r, float[][] g, float[][] b) {
+    int nx = r.length;
+    int ny = r[0].length;
+    float[][] a = fillfloat(1.0f,ny,nx);
+    return makeColors(r,g,b,a);
+  }
+  private static float[] makeColors(
+      float[][] r, float[][] g, float[][] b, float[][] a) 
+  {
     int nx = r.length-1;
     int ny = r[0].length-1;
-    float[] rgb = new float[3*6*nx*ny];
+//    float[] rgba = new float[4*6*nx*ny];
+    float[] rgba = new float[3*6*nx*ny];
     for (int ix=0,i=0; ix<nx; ++ix) {
       for (int iy=0; iy<ny; ++iy) {
-        rgb[i++] = r[ix  ][iy  ];
-        rgb[i++] = g[ix  ][iy  ];
-        rgb[i++] = b[ix  ][iy  ];
-        rgb[i++] = r[ix  ][iy+1];
-        rgb[i++] = g[ix  ][iy+1];
-        rgb[i++] = b[ix  ][iy+1];
-        rgb[i++] = r[ix+1][iy  ];
-        rgb[i++] = g[ix+1][iy  ];
-        rgb[i++] = b[ix+1][iy  ];
-        rgb[i++] = r[ix+1][iy  ];
-        rgb[i++] = g[ix+1][iy  ];
-        rgb[i++] = b[ix+1][iy  ];
-        rgb[i++] = r[ix  ][iy+1];
-        rgb[i++] = g[ix  ][iy+1];
-        rgb[i++] = b[ix  ][iy+1];
-        rgb[i++] = r[ix+1][iy+1];
-        rgb[i++] = g[ix+1][iy+1];
-        rgb[i++] = b[ix+1][iy+1];
+        rgba[i++] = r[ix  ][iy  ];
+        rgba[i++] = g[ix  ][iy  ];
+        rgba[i++] = b[ix  ][iy  ];
+//        rgba[i++] = a[ix  ][iy  ];
+        rgba[i++] = r[ix  ][iy+1];
+        rgba[i++] = g[ix  ][iy+1];
+        rgba[i++] = b[ix  ][iy+1];
+//        rgba[i++] = a[ix  ][iy+1];
+        rgba[i++] = r[ix+1][iy  ];
+        rgba[i++] = g[ix+1][iy  ];
+        rgba[i++] = b[ix+1][iy  ];
+//        rgba[i++] = a[ix+1][iy  ];
+        rgba[i++] = r[ix+1][iy  ];
+        rgba[i++] = g[ix+1][iy  ];
+        rgba[i++] = b[ix+1][iy  ];
+//        rgba[i++] = a[ix+1][iy  ];
+        rgba[i++] = r[ix  ][iy+1];
+        rgba[i++] = g[ix  ][iy+1];
+        rgba[i++] = b[ix  ][iy+1];
+//        rgba[i++] = a[ix  ][iy+1];
+        rgba[i++] = r[ix+1][iy+1];
+        rgba[i++] = g[ix+1][iy+1];
+        rgba[i++] = b[ix+1][iy+1];
+//        rgba[i++] = a[ix+1][iy+1];
       }
     }
-    return rgb;
+    return rgba;
   }
 
   /**
@@ -380,7 +402,7 @@ public class TriangleGroup extends Group implements Selectable {
   private static final int I = 0,  J = 1,  K = 2;
   private static final int X = 0,  Y = 1,  Z = 2;
   private static final int U = 0,  V = 1,  W = 2;
-  private static final int R = 0,  G = 1,  B = 2;
+  private static final int R = 0,  G = 1,  B = 2,  A = 3;
 
   private static final int MIN_TRI_PER_NODE = 1024;
   private IndexColorModel _colorModel;
@@ -389,22 +411,22 @@ public class TriangleGroup extends Group implements Selectable {
   /**
    * Recursively builds a binary tree with leaf triangle nodes.
    */
-  private void buildTree(int[] ijk, float[] xyz, float[] uvw, float[] rgb) {
+  private void buildTree(int[] ijk, float[] xyz, float[] uvw, float[] rgba) {
     float[] c = computeCenters(ijk,xyz);
     BoundingBoxTree bbt = new BoundingBoxTree(MIN_TRI_PER_NODE,c);
-    buildTree(this,bbt.getRoot(),ijk,xyz,uvw,rgb);
+    buildTree(this,bbt.getRoot(),ijk,xyz,uvw,rgba);
   }
   private void buildTree(Group parent, BoundingBoxTree.Node bbtNode, 
-    int[] ijk, float[] xyz, float[] uvw, float[] rgb) 
+    int[] ijk, float[] xyz, float[] uvw, float[] rgba) 
   {
     if (bbtNode.isLeaf()) {
-      TriangleNode tn = new TriangleNode(bbtNode,ijk,xyz,uvw,rgb);
+      TriangleNode tn = new TriangleNode(bbtNode,ijk,xyz,uvw,rgba);
       parent.addChild(tn);
     } else {
       Group group = new Group();
       parent.addChild(group);
-      buildTree(group,bbtNode.getLeft(),ijk,xyz,uvw,rgb);
-      buildTree(group,bbtNode.getRight(),ijk,xyz,uvw,rgb);
+      buildTree(group,bbtNode.getLeft(),ijk,xyz,uvw,rgba);
+      buildTree(group,bbtNode.getRight(),ijk,xyz,uvw,rgba);
     }
   }
 
@@ -414,7 +436,7 @@ public class TriangleGroup extends Group implements Selectable {
   private class TriangleNode extends Node {
 
     public TriangleNode(BoundingBoxTree.Node bbtNode, 
-      int[] ijk, float[] xyz, float[] uvw, float[] rgb) 
+      int[] ijk, float[] xyz, float[] uvw, float[] rgba) 
     {
       BoundingBox bb = bbtNode.getBoundingBox();
       _bs = new BoundingSphere(bb);
@@ -426,7 +448,8 @@ public class TriangleGroup extends Group implements Selectable {
       int[] index = bbtNode.getIndices();
       _vb = Direct.newFloatBuffer(3*nv);
       _nb = (uvw!=null)?Direct.newFloatBuffer(3*nn):null;
-      _cb = (rgb!=null)?Direct.newFloatBuffer(3*nc):null;
+      _cb = (rgba!=null)?Direct.newFloatBuffer(3*nc):null;
+//      _cb = (rgba!=null)?Direct.newFloatBuffer(4*nc):null;
       for (int it=0,iv=0,in=0,ic=0; it<nt; ++it) {
         int jt = 3*index[it];
         int i = 3*ijk[jt+I];
@@ -453,15 +476,18 @@ public class TriangleGroup extends Group implements Selectable {
           _nb.put(in++,uvw[k+W]);
         }
         if (_cb!=null) {
-          _cb.put(ic++,rgb[i+R]);
-          _cb.put(ic++,rgb[i+G]);
-          _cb.put(ic++,rgb[i+B]);
-          _cb.put(ic++,rgb[j+R]);
-          _cb.put(ic++,rgb[j+G]);
-          _cb.put(ic++,rgb[j+B]);
-          _cb.put(ic++,rgb[k+R]);
-          _cb.put(ic++,rgb[k+G]);
-          _cb.put(ic++,rgb[k+B]);
+          _cb.put(ic++,rgba[i+R]);
+          _cb.put(ic++,rgba[i+G]);
+          _cb.put(ic++,rgba[i+B]);
+//          _cb.put(ic++,rgba[i+A]);
+          _cb.put(ic++,rgba[j+R]);
+          _cb.put(ic++,rgba[j+G]);
+          _cb.put(ic++,rgba[j+B]);
+//          _cb.put(ic++,rgba[j+A]);
+          _cb.put(ic++,rgba[k+R]);
+          _cb.put(ic++,rgba[k+G]);
+          _cb.put(ic++,rgba[k+B]);
+//          _cb.put(ic++,rgba[k+A]);
         }
       }
     }
@@ -471,6 +497,7 @@ public class TriangleGroup extends Group implements Selectable {
     }
 
     protected void draw(DrawContext dc) {
+//      Thread.dumpStack();
       boolean selected = TriangleGroup.this.isSelected();
       glEnableClientState(GL_VERTEX_ARRAY);
       glVertexPointer(3,GL_FLOAT,0,_vb);
@@ -481,6 +508,8 @@ public class TriangleGroup extends Group implements Selectable {
       if (_cb!=null) {
         glEnableClientState(GL_COLOR_ARRAY);
         glColorPointer(3,GL_FLOAT,0,_cb);
+//        glEnableClientState(GL_RGBA_FLOAT_MODE);
+//        glColorPointer(4,GL_FLOAT,0,_cb);
       }
       if (selected) {
         glEnable(GL_POLYGON_OFFSET_FILL);
@@ -491,6 +520,7 @@ public class TriangleGroup extends Group implements Selectable {
         glDisableClientState(GL_NORMAL_ARRAY);
       if (_cb!=null)
         glDisableClientState(GL_COLOR_ARRAY);
+//        glDisableClientState(GL_RGBA_FLOAT_MODE);
       if (selected) {
         glPolygonMode(GL_FRONT_AND_BACK,GL_LINE);
         glDisable(GL_LIGHTING);

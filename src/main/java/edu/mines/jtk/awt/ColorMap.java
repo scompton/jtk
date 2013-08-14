@@ -498,6 +498,16 @@ public class ColorMap {
       colors[i] = c;
     return makeIndexColorModel(colors);
   }
+  
+  public static IndexColorModel makeTransparentColors(Color c, float a) {
+    float r = c.getRed()/255.0f;
+    float g = c.getGreen()/255.0f;
+    float b = c.getBlue()/255.0f;
+    Color[] colors = new Color[256];
+    for (int i=0; i<256; ++i)
+      colors[i] = new Color(r,g,b,a);
+    return makeIndexColorModel(colors);
+  }
 
   /**
    * Returns an index color model with specified opacity (alpha).

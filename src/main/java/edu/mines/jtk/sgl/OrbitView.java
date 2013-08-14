@@ -55,7 +55,15 @@ import edu.mines.jtk.util.Stopwatch;
  * @version 2005.05.29
  */
 public class OrbitView extends View {
-
+  
+  public enum TransparencyOption {
+    T0,
+    T1,
+    T2,
+    T3,
+    T4
+  }
+  
   /**
    * Perspective or orthographic projection.
    */
@@ -232,7 +240,10 @@ public class OrbitView extends View {
     return new Matrix44(_unitSphereToView);
   }
 
-
+  public void setTransparencyOption(TransparencyOption to) {
+    _to = to;
+  }
+  
   ///////////////////////////////////////////////////////////////////////////
   // protected
 
@@ -358,8 +369,6 @@ public class OrbitView extends View {
     glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
 
     // Anti-aliasing for points and lines.
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_LINE_SMOOTH);
     glEnable(GL_POINT_SMOOTH);
     glHint(GL_LINE_SMOOTH_HINT,GL_NICEST);
@@ -367,8 +376,7 @@ public class OrbitView extends View {
 
     // Other stuff.
     glEnable(GL_NORMALIZE);
-    glEnable(GL_DEPTH_TEST);
-
+    
     // Our world.
     World world = getWorld();
     if (world==null)
@@ -396,12 +404,15 @@ public class OrbitView extends View {
     Matrix44 worldToView = this.getWorldToView();
     glLoadMatrixd(worldToView.m,0);
 
-    // Cull and draw the world.
-    CullContext cc = new CullContext(canvas);
-    world.cullApply(cc);
-    DrawList dl = cc.getDrawList();
-    DrawContext dc = new DrawContext(canvas);
-    dl.draw(dc);
+    switch(_to) {
+      case T0: drawT0(world,canvas); break;
+      case T1: drawT1(world,canvas); break;
+      case T2: drawT2(world,canvas); break;
+      case T3: drawT3(world,canvas); break;
+      case T4: drawT4(world,canvas); break;
+      default: throw new RuntimeException(
+          _to.toString()+" is not a valid option.");
+    }
 
     // Statistics:
     ++_ndraw;
@@ -413,7 +424,213 @@ public class OrbitView extends View {
       _stopwatch.restart();
     }
   }
+  
+  private void drawT0(World world, ViewCanvas canvas) {
+    glEnable(GL_DEPTH_TEST);
+    
+    // Transparency stuff.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
 
+    // Cull and draw the world.
+    CullContext cc = new CullContext(canvas);
+    world.cullApply(cc);
+    DrawList dl = cc.getDrawList();
+    DrawContext dc = new DrawContext(canvas);
+    dl.draw(dc);
+  }
+
+  private void drawT1(World world, ViewCanvas canvas) {
+    float f = 0.75f;
+    glEnable(GL_DEPTH_TEST);
+    
+    // Transparency stuff.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Cull and draw the world.
+    CullContext cc = new CullContext(canvas);
+    world.cullApply(cc);
+    
+    DrawList dl = cc.getDrawList();
+    DrawContext dc = new DrawContext(canvas);
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
+    Node[] nodes = dc.getNodes();
+    int nn = nodes.length;
+    float[][] rgba0 = new float[nn][4];
+    float s = 1.0f/255.0f;
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color c = cs.getColor();
+      rgba0[i][0] = c.getRed()*s;
+      rgba0[i][1] = c.getBlue()*s;
+      rgba0[i][2] = c.getBlue()*s;
+      rgba0[i][3] = c.getAlpha()*s;
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],rgba0[i][3]*f);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_GREATER);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],rgba0[i][3]*f);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      float an = (rgba0[i][3]-f*rgba0[i][3])/(1.0f-f*rgba0[i][3]);
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],an);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+  }
+  
+  private void drawT2(World world, ViewCanvas canvas) {
+    float f = 0.75f;
+    glEnable(GL_DEPTH_TEST);
+    
+    // Transparency stuff.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Cull and draw the world.
+    CullContext cc = new CullContext(canvas);
+    world.cullApply(cc);
+    
+    DrawList dl = cc.getDrawList();
+    DrawContext dc = new DrawContext(canvas);
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_ALWAYS);
+    dl.draw(dc);
+    
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
+    Node[] nodes = dc.getNodes();
+    int nn = nodes.length;
+    float s = 1.0f/255.0f;
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color c = cs.getColor();
+      float r = c.getRed()*s;
+      float g = c.getBlue()*s;
+      float b = c.getBlue()*s;
+      float a = c.getAlpha()*s;
+      float an = (a-f*a)/(1.0f-f*a);
+      Color cn = new Color(r,g,b,an);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);    
+  }
+  
+  private void drawT3(World world, ViewCanvas canvas) {
+    float f = 0.75f;
+    glEnable(GL_DEPTH_TEST);
+    
+    // Transparency stuff.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Cull and draw the world.
+    CullContext cc = new CullContext(canvas);
+    world.cullApply(cc);
+    
+    DrawList dl = cc.getDrawList();
+    DrawContext dc = new DrawContext(canvas);
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LESS);
+    Node[] nodes = dc.getNodes();
+    int nn = nodes.length;
+    float[][] rgba0 = new float[nn][4];
+    float s = 1.0f/255.0f;
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color c = cs.getColor();
+      rgba0[i][0] = c.getRed()*s;
+      rgba0[i][1] = c.getBlue()*s;
+      rgba0[i][2] = c.getBlue()*s;
+      rgba0[i][3] = c.getAlpha()*s;
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],0.0f);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    glDepthFunc(GL_ALWAYS);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],rgba0[i][3]*f);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    glDepthFunc(GL_LEQUAL);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      float an = (rgba0[i][3]-f*rgba0[i][3])/(1.0f-f*rgba0[i][3]);
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],an);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glDepthFunc(GL_ALWAYS);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],rgba0[i][3]*f);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+    
+    // There's a trade off here. With culling enabled then a perfectly
+    // opaque object (alpha=1) may be wrong. With it disabled, ordering
+    // artifacts may appear
+//    glEnable(GL_CULL_FACE);
+//    glCullFace(GL_BACK);
+    glDisable(GL_CULL_FACE);
+    glDepthFunc(GL_LEQUAL);
+    for (int i=0; i<nn; i++) {
+      ColorState cs = nodes[i].getStates().getColorState();
+      float an = (rgba0[i][3]-f*rgba0[i][3])/(1.0f-f*rgba0[i][3]);
+      Color cn = new Color(rgba0[i][0],rgba0[i][1],rgba0[i][2],an);
+      cs.setColor(cn);
+    }
+    dl.draw(dc);
+  }
+  
+  private void drawT4(World world, ViewCanvas canvas) {
+    glEnable(GL_DEPTH_TEST);
+    
+    // Transparency stuff.
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+    
+    // Cull and draw the world.
+    CullContext cc = new CullContext(canvas);
+    world.cullApply(cc);
+    DrawList dl = cc.getDrawList();
+    DrawContext dc = new DrawContext(canvas);
+    glEnable(GL_ALPHA_TEST);
+    glAlphaFunc(GL_EQUAL,1.0f);
+    dl.draw(dc);
+    glAlphaFunc(GL_NOTEQUAL,1.0f);
+    glDepthMask(false);
+    dl.draw(dc);
+    glDepthMask(true);
+  }
+  
   ///////////////////////////////////////////////////////////////////////////
   // private
 
@@ -421,6 +638,7 @@ public class OrbitView extends View {
   private Vector3 _translate;
   private double _azimuth;
   private double _elevation;
+  private TransparencyOption _to = TransparencyOption.T4;
   private Projection _projection = Projection.PERSPECTIVE;
   private BoundingSphere _worldSphere = null;
   private Matrix44 _worldToUnitSphere;
