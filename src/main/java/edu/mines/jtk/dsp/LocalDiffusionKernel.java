@@ -6,8 +6,6 @@ available at http://www.eclipse.org/legal/cpl-v10.html
 ****************************************************************************/
 package edu.mines.jtk.dsp;
 
-import java.util.logging.Logger;
-
 import edu.mines.jtk.util.*;
 import static edu.mines.jtk.util.ArrayMath.*;
 
@@ -360,7 +358,6 @@ public class LocalDiffusionKernel {
     int i3start, int i3step, int i3stop,
     Tensors3 d, float c, float[][][] s, float[][][] x, float[][][] y) 
   {
-    int n3 = x.length;
     for (int i3=i3start; i3<i3stop; i3+=i3step)
       apply(i3,d,c,s,x,y);
   }
@@ -370,7 +367,6 @@ public class LocalDiffusionKernel {
     final Tensors3 d, final float c, final float[][][] s, 
     final float[][][] x, final float[][][] y) 
   {
-    final int n3 = x.length;
     for (int i3pass=0; i3pass<i3step; ++i3pass,++i3start) {
       Parallel.loop(i3start,i3stop,i3step,new Parallel.LoopInt() {
         public void compute(int i3) {
@@ -424,7 +420,6 @@ public class LocalDiffusionKernel {
           cs2 *= 0.5f*(s[i3][i2][i1]+s[i3][m2][i1]);
           cs3 *= 0.5f*(s[i3][i2][i1]+s[m3][i2][i1]);
         }
-        float csi = (s!=null)?c*s[i3][i2][i1]:c;
         float x1 = x[i3][i2][i1]-x[i3][i2][m1];
         float x2 = x[i3][i2][i1]-x[i3][m2][i1];
         float x3 = x[i3][i2][i1]-x[m3][i2][i1];
@@ -797,7 +792,7 @@ public class LocalDiffusionKernel {
     0.0f, 0.830893f, -0.227266f, 0.042877f
   };
   
-  private void apply71(
+  private void apply71X(
     Tensors2 d, float c, float[][] s, float[][] x, float[][] y) 
   {
     final float c1 =  C71[1], c2 = C71[2], c3 = C71[3];
@@ -835,7 +830,7 @@ public class LocalDiffusionKernel {
     }
   }
  
-  private void apply71X(
+  private void apply71(
     Tensors2 d, float c, float[][] s, float[][] x, float[][] y) 
   {
     final float c1 =  C71[1], c2 = C71[2], c3 = C71[3];
@@ -885,7 +880,7 @@ public class LocalDiffusionKernel {
     }
   }
 
-  private void apply71(
+  private void apply71X(
     int i3, Tensors3 d, float c, float[][][] s, float[][][] x, float[][][] y) 
   {
     final float c1 =  C71[1], c2 = C71[2], c3 = C71[3];
@@ -933,7 +928,7 @@ public class LocalDiffusionKernel {
     gt(C71,g1,g2,y[i3]);
   }
 
-  private void apply71X(
+  private void apply71(
     int i3, Tensors3 d, float c, float[][][] s, float[][][] x, float[][][] y) 
   {
     final float c1 =  C71[1], c2 = C71[2], c3 = C71[3];
@@ -983,15 +978,15 @@ public class LocalDiffusionKernel {
         float d22 = di[3]*csi;
         float d23 = di[4]*csi;
         float d33 = di[5]*csi;
-        float x1 = c1*(xp0p0[p1]-xp0p0[m1]) +
-                   c2*(xp0p0[p2]-xp0p0[m2]) +
-                   c3*(xp0p0[p3]-xp0p0[m3]);
-        float x2 = c1*(xp0p1[p0]-xp0m1[p0]) +
-                   c2*(xp0p2[p0]-xp0m2[p0]) +
-                   c3*(xp0p3[p0]-xp0m3[p0]);
-        float x3 = c1*(xp1p0[p0]-xm1p0[p0]) +
-                   c2*(xp2p0[p0]-xm2p0[p0]) +
-                   c3*(xp3p0[p0]-xm3p0[p0]);
+        float x1  = c1*(xp0p0[p1]-xp0p0[m1]) +
+                    c2*(xp0p0[p2]-xp0p0[m2]) +
+                    c3*(xp0p0[p3]-xp0p0[m3]);
+        float x2  = c1*(xp0p1[p0]-xp0m1[p0]) +
+                    c2*(xp0p2[p0]-xp0m2[p0]) +
+                    c3*(xp0p3[p0]-xp0m3[p0]);
+        float x3  = c1*(xp1p0[p0]-xm1p0[p0]) +
+                    c2*(xp2p0[p0]-xm2p0[p0]) +
+                    c3*(xp3p0[p0]-xm3p0[p0]);
         float y1 = d11*x1+d12*x2+d13*x3;
         float y2 = d12*x1+d22*x2+d23*x3;
         float y3 = d13*x1+d23*x2+d33*x3;
@@ -1319,8 +1314,8 @@ public class LocalDiffusionKernel {
     trace("ygx="+ygx);
     trace("xgy="+xgy);
   }
-  private static void main(String[] args) {
-    testGrad1();
-    testGrad2();
+  public static void main(String[] args) {
+    //testGrad1();
+    //testGrad2();
   }
 }

@@ -3,12 +3,12 @@
 	<classpathentry kind="src" path="src/demo/java"/>
 	<classpathentry kind="src" path="src/main/java"/>
 	<classpathentry kind="src" path="src/test/java"/>
-	<classpathentry kind="lib" path="jar/arpack-java.jar"/>
-	<classpathentry kind="lib" path="jar/gluegen-rt.jar"/>
-	<classpathentry kind="lib" path="jar/junit.jar"/>
-	<classpathentry kind="lib" path="jar/jythonlib.jar"/>
-	<classpathentry kind="lib" path="jar/netlib-java.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER"/>
-	<classpathentry kind="lib" path="jar/jogl-all.jar"/>
+	<classpathentry kind="lib" path="libs/arpack-java.jar"/>
+	<classpathentry kind="lib" path="libs/gluegen-rt.jar"/>
+	<classpathentry kind="lib" path="libs/jogl-all.jar"/>
+	<classpathentry kind="lib" path="libs/junit.jar"/>
+	<classpathentry kind="lib" path="libs/jythonlib.jar"/>
+	<classpathentry kind="lib" path="libs/netlib-java.jar"/>
 	<classpathentry kind="output" path="build/cls"/>
 </classpath>
