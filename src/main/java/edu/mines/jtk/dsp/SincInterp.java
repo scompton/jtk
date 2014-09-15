@@ -56,8 +56,9 @@ import edu.mines.jtk.util.Check;
  * @author Dave Hale, Colorado School of Mines
  * @author Bill Harlan, Landmark Graphics
  * @version 2012.12.21
+ * @deprecated Use class {@link edu.mines.jtk.dsp.SincInterpolator} instead.
  */
-public class SincInterpolator {
+public class SincInterp {
 
   /**
    * The method used to extrapolate samples when interpolating.
@@ -82,10 +83,10 @@ public class SincInterpolator {
    *  Must be an even integer not less than 8.
    * @return the sinc interpolator.
    */
-  public static SincInterpolator fromErrorAndLength(
+  public static SincInterp fromErrorAndLength(
     double emax, int lmax)
   {
-    return new SincInterpolator(emax,0.0,lmax);
+    return new SincInterp(emax,0.0,lmax);
   }
 
   /**
@@ -97,10 +98,10 @@ public class SincInterpolator {
    *  Must be greater than 0.0 and less than 0.5.
    * @return the sinc interpolator.
    */
-  public static SincInterpolator fromErrorAndFrequency(
+  public static SincInterp fromErrorAndFrequency(
     double emax, double fmax)
   {
-    return new SincInterpolator(emax,fmax,0);
+    return new SincInterp(emax,fmax,0);
   }
 
   /**
@@ -117,10 +118,10 @@ public class SincInterpolator {
    *  1.0/(1.0-2.0*fmax).
    * @return the sinc interpolator.
    */
-  public static SincInterpolator fromFrequencyAndLength(
+  public static SincInterp fromFrequencyAndLength(
     double fmax, int lmax)
   {
-    return new SincInterpolator(0.0,fmax,lmax);
+    return new SincInterp(0.0,fmax,lmax);
   }
 
   /**
@@ -129,7 +130,7 @@ public class SincInterpolator {
    * For these parameters, the computed maximum error is less than 0.007
    * (0.7%). In testing, observed maximum error is less than 0.005 (0.5%).
    */
-  public SincInterpolator() {
+  public SincInterp() {
     this(0.0,0.3,8);
   }
 
@@ -569,7 +570,7 @@ public class SincInterpolator {
    * Constructs a sinc interpolator with specified parameters.
    * Exactly one of the parameters must be zero, and is computed here.
    */
-  private SincInterpolator(double emax,double fmax,int lmax) {
+  private SincInterp(double emax,double fmax,int lmax) {
     Check.argument(emax==0.0 && fmax!=0.0 && lmax!=0 ||
                    emax!=0.0 && fmax==0.0 && lmax!=0 ||
                    emax!=0.0 && fmax!=0.0 && lmax==0,
